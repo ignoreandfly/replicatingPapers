@@ -7,7 +7,8 @@ All models are implemented using **PyTorch**, aiming to provide clean, easy-to-u
 | Paper                                                | Folder       |
 |------------------------------------------------------|--------------|
 | [An Image is Worth 16x16 Words (ViT)](https://arxiv.org/abs/2010.11929) | [ViT](./ViT) |
-|[Generative Adversarial Networks] (https://arxiv.org/abs/1406.2661)| [GAN](./GAN)|
+|[Generative Adversarial Networks](https://arxiv.org/abs/1406.2661)| [GAN](./GAN)|
+
 
 ---
 
