@@ -1,0 +1,31 @@
+# env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# generated harness data (regenerate with `make data` — it is deterministic).
+# `data/*` rather than `data/`: git cannot re-include a file whose parent
+# directory is excluded, so the .gitkeep negation below would be a no-op.
+data/*
+!data/.gitkeep
+
+# run artifacts
+runs/
+checkpoints/
+*.ckpt
+*.pt
+wandb/
+
+# throwaway shape-poking, never committed
+scratch/
+
+# plots
+*.png
+!docs/**/*.png
+
+# os
+.DS_Store

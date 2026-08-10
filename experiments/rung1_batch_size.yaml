@@ -1,0 +1,49 @@
+# Rung 1 ablation: zero-shot accuracy vs. contrastive batch size.
+#
+# The claim under test is CLIP's: InfoNCE quality scales with the number of
+# in-batch negatives. On a 2k-image synthetic set the effect should be visible
+# but modest — and if it is *absent*, that is the interesting result, and the
+# first thing to check is whether the temperature is doing the work instead.
+#
+# Rung 2 (SigLIP) reuses this exact sweep with only the loss swapped, which is
+# the entire point of the sigmoid small-batch claim. Do not change the sweep
+# grid between rungs or the comparison is worthless.
+
+name: rung1_batch_size
+rung: 1
+seed: 0
+device: cuda
+
+data:
+  dir: data/shapes
+  train_split: train
+  eval_split: eval
+  max_caption_len: 32
+
+model:
+  embed_dim: 128
+  image_size: 64
+  patch_size: 8
+  vision_width: 192
+  vision_depth: 6
+  vision_heads: 3
+  text_width: 192
+  text_depth: 4
+  text_heads: 3
+  init_temperature: 0.07
+
+train:
+  epochs: 30
+  lr: 5.0e-4
+  weight_decay: 0.1
+  warmup_steps: 200
+  grad_clip: 1.0
+
+sweep:
+  batch_size: [8, 16, 32, 64, 128, 256]
+
+report:
+  # per-axis, always. no aggregate.
+  axes: [color, count, relation, binding]
+  baselines: [uniform, majority]
+  plot: runs/rung1_batch_size.png
