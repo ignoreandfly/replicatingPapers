@@ -86,7 +86,16 @@ class MultiHeadSelfAttention(nn.Module):
             causal: if True, mask position i from attending to j > i. The text
                 tower in CLIP is causal; the vision tower is not.
         """
-        raise NotImplementedError
+        super().__init__()
+        self.n_heads = n_heads 
+        self.causal = causal 
+        self.width = width
+        assert (self.width %  self.n_heads == 0), "Width is not divisible by n_heads"
+        self.qkv = nn.Linear(self.width , 3*self.width , bias = True)
+        self.projection = nn.Linear(self.width , self.width , bias = True)
+
+
+
 
     def forward(
         self,
@@ -100,17 +109,35 @@ class MultiHeadSelfAttention(nn.Module):
         (B, H, L, L) logits, and masked positions go to -inf *before* the
         softmax, not after.
         """
-        raise NotImplementedError
+        B, L, W = x.shape
+        q, k, v = self.qkv(x).chunk(3, dim = -1)
+        q = q.view(B, L, self.n_heads, self.width// self.n_heads).transpose(1, 2)
+        k = k.view(B, L, self.n_heads, self.width// self.n_heads).transpose(1, 2)
+        v = v.view(B, L, self.n_heads, self.width// self.n_heads).transpose(1, 2)
+        attn_logits = q @ k.transpose(-2, -1) * (self.width//self.n_heads)** (-0.5) 
+        if self.causal == True:
+            allowed = torch.ones(L, L, dtype=torch.bool, device = x.device).tril()
+            attn_logits = attn_logits.masked_fill(~allowed, float("-inf"))
+        if key_padding_mask is not None:
+           key_padding_mask = key_padding_mask[:, None, None, :]
+           attn_logits = attn_logits.masked_fill(~key_padding_mask, float("-inf"))
+
+        attn_out = torch.nn.functional.softmax(attn_logits, dim = -1)@ v
+        merged = attn_out.transpose(1, 2).reshape(B, L, W)
+        return self.projection(merged)
 
 
 class MLP(nn.Module):
     """Position-wise feed-forward: W -> mlp_ratio * W -> W, GELU between."""
 
     def __init__(self, width: int, mlp_ratio: float = 4.0) -> None:
-        raise NotImplementedError
+        super().__init__()
+        self.fc1 = nn.Linear(width, int(mlp_ratio * width))
+        self.fc2 = nn.Linear(int(mlp_ratio * width), width)
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # (B, L, W) -> (B, L, W)
-        raise NotImplementedError
+        return self.fc2(torch.nn.functional.gelu(self.fc1(x)))
 
 
 class Block(nn.Module):
@@ -126,14 +153,21 @@ class Block(nn.Module):
     def __init__(
         self, width: int, n_heads: int, mlp_ratio: float = 4.0, causal: bool = False
     ) -> None:
-        raise NotImplementedError
+        super().__init__()
+        self.ln1 = nn.LayerNorm(width)
+        self.attn = MultiHeadSelfAttention(width, n_heads, causal)
+        self.ln2 = nn.LayerNorm(width)
+        self.mlp = MLP(width, mlp_ratio)
 
     def forward(
         self,
         x: torch.Tensor,  # (B, L, W)
         key_padding_mask: torch.Tensor | None = None,  # (B, L)
     ) -> torch.Tensor:  # (B, L, W)
-        raise NotImplementedError
+        x = x + self.attn(self.ln1(x), key_padding_mask)
+        x = x + self.mlp(self.ln2(x))
+        return x 
+
 
 
 class VisionTransformer(nn.Module):
